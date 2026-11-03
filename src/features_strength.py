@@ -1,11 +1,10 @@
 """Strength-weighted HP features.
 
 The plain `hp_diff` counts every Pokemon the same. Here each Pokemon's remaining HP is weighted by how
-much that Pokemon matters. Player 1's whole team is known, so its weights come from
-the team details; player 2's Pokemon come from its lead details or the lookup, and Pokemons never seen
+much that Pokemon matters (see `species_weight`). Player 1's whole team is known, so its weights come from
+the team details; player 2's Pokemon come from its lead details or the lookup, and Pokemon never seen
 get the average weight and full health.
 """
-import numpy as np
 import pandas as pd
 
 from src.lookup import default_weight, species_weight

@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Wed Nov  4 17:05:09 2026
+
+@author: mashi
+"""
 import warnings
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -8,7 +13,7 @@ from features import load_or_build_features, analyze_and_plot_regime_features, R
 from models import (
     get_lr_builder,
     get_svm_builder,
-    get_rf_builder,
+    get_xgb_builder,
     run_kfold_experiment,
     save_submission
 )
@@ -19,7 +24,7 @@ EVALUATION_PLOT_PNG = "simple_ensemble_evaluation.png"
 
 
 def main():
-    # 1. Load or extract all features (including Turn-30 Regime features)
+    # 1. Load or extract all merged features (Trajectory + BST-WHP + Flow + Species + Regime)
     train_df, test_df = load_or_build_features()
     y_true = train_df["player_won"].astype(int).values
 
@@ -36,16 +41,16 @@ def main():
     svm_oof, svm_test_probs, svm_acc = run_kfold_experiment(train_df, test_df, get_svm_builder())
     save_submission(test_df, svm_test_probs, "submission_svm.csv")
 
-    # 5. Candidate Model 3: Standard Random Forest
-    print("\n=== Model 3: Standard Random Forest ===")
-    rf_oof, rf_test_probs, rf_acc = run_kfold_experiment(train_df, test_df, get_rf_builder())
-    save_submission(test_df, rf_test_probs, "submission_random_forest.csv")
+    # 5. Candidate Model 3: XGBoost Classifier
+    print("\n=== Model 3: XGBoost ===")
+    xgb_oof, xgb_test_probs, xgb_acc = run_kfold_experiment(train_df, test_df, get_xgb_builder())
+    save_submission(test_df, xgb_test_probs, "submission_xgboost.csv")
 
-    # 6. Ensemble (Soft-Voting Blend of Logistic Regression + SVM + Random Forest)
-    print("\n=== Model 4: Ensemble (Logistic Regression + SVM + Random Forest) ===")
-    w_lr, w_svm, w_rf = 0.25, 0.35, 0.40
+    # 6. Ensemble (Soft-Voting Blend of Logistic Regression + SVM + XGBoost)
+    print("\n=== Model 4: Ensemble (Logistic Regression + SVM + XGBoost) ===")
+    w_lr, w_svm, w_xgb = 0.30, 0.30, 0.40
 
-    ensemble_oof = (w_lr * lr_oof) + (w_svm * svm_oof) + (w_rf * rf_oof)
+    ensemble_oof = (w_lr * lr_oof) + (w_svm * svm_oof) + (w_xgb * xgb_oof)
     ensemble_preds = (ensemble_oof >= 0.5).astype(int)
     ensemble_acc = accuracy_score(y_true, ensemble_preds)
 
@@ -58,14 +63,14 @@ def main():
     print("Classification Report (Ensemble OOF):")
     print(classification_report(y_true, ensemble_preds, target_names=["P1 Loses (0)", "P1 Wins (1)"]))
 
-    ensemble_test_probs = (w_lr * lr_test_probs) + (w_svm * svm_test_probs) + (w_rf * rf_test_probs)
+    ensemble_test_probs = (w_lr * lr_test_probs) + (w_svm * svm_test_probs) + (w_xgb * xgb_test_probs)
     save_submission(test_df, ensemble_test_probs, "submission_ensemble.csv")
 
     # 7. Summary Evaluation Plots for Methodology Report
     fig, axes = plt.subplots(1, 3, figsize=(16, 4.8))
 
-    model_names = ["Logistic Reg", "SVM", "Random Forest", "Ensemble"]
-    accuracies = [lr_acc * 100, svm_acc * 100, rf_acc * 100, ensemble_acc * 100]
+    model_names = ["Logistic Reg", "SVM", "XGBoost", "Ensemble"]
+    accuracies = [lr_acc * 100, svm_acc * 100, xgb_acc * 100, ensemble_acc * 100]
     bars = axes[0].bar(
         model_names, accuracies,
         color=["#74a9cf", "#4b729f", "#2b8cbe", "#5e3c99"],
@@ -73,7 +78,7 @@ def main():
     )
     axes[0].set_ylim(max(50, min(accuracies) - 3), max(accuracies) + 2)
     axes[0].set_ylabel("5-Fold OOF Accuracy (%)")
-    axes[0].set_title("Model Comparison (Validation Accuracy)")
+    axes[0].set_title("Model Comparison (Merged Feature Set)")
     axes[0].grid(axis="y", alpha=0.3)
     for bar in bars:
         h = bar.get_height()
@@ -92,7 +97,7 @@ def main():
     for name, probs, col in [
         ("Logistic Reg", lr_oof, "#74a9cf"),
         ("SVM", svm_oof, "#4b729f"),
-        ("Random Forest", rf_oof, "#2b8cbe"),
+        ("XGBoost", xgb_oof, "#2b8cbe"),
         ("Ensemble", ensemble_oof, "#5e3c99")
     ]:
         fpr, tpr, _ = roc_curve(y_true, probs)
@@ -112,4 +117,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

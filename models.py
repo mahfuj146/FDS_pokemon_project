@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Wed Nov  4 17:04:40 2026
 
+@author: mashi
+"""
 import numpy as np
 import pandas as pd
+from xgboost import XGBClassifier
 from sklearn.model_selection import StratifiedKFold
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
 SEED = 42
@@ -18,7 +22,7 @@ def get_lr_builder():
     return lambda seed: Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
         ("scaler", StandardScaler()),
-        ("clf", LogisticRegression(max_iter=1000, C=1.0, random_state=seed))
+        ("clf", LogisticRegression(max_iter=1500, C=0.25, random_state=seed))
     ])
 
 
@@ -30,16 +34,21 @@ def get_svm_builder():
     ])
 
 
-def get_rf_builder():
+def get_xgb_builder():
     return lambda seed: Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
-        ("clf", RandomForestClassifier(
-            n_estimators=400,
-            max_depth=12,
-            min_samples_split=5,
-            min_samples_leaf=4,
-            max_features="sqrt",
+        ("clf", XGBClassifier(
+            n_estimators=450,
+            learning_rate=0.035,
+            max_depth=4,
+            min_child_weight=6,
+            subsample=0.80,
+            colsample_bytree=0.70,
+            reg_alpha=0.5,
+            reg_lambda=2.0,
             random_state=seed,
+            eval_metric="logloss",
+            tree_method="hist",
             n_jobs=-1
         ))
     ])
